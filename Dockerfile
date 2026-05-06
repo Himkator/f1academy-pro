@@ -1,35 +1,70 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-# Установка системных зависимостей
+# ── СИСТЕМНЫЕ ЗАВИСИМОСТИ ──
 RUN apt-get update && apt-get install -y \
-    git curl unzip libpq-dev libzip-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libpq-dev \
+    zip \
+    unzip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Установка Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# ── PHP РАСШИРЕНИЯ ──
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd
 
-# Рабочая директория
-WORKDIR /var/www
+# ── COMPOSER ──
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Копируем composer сначала (для кеша)
-COPY composer.json composer.lock ./
+# ── APACHE MOD_REWRITE ──
+RUN a2enmod rewrite
 
-# Установка зависимостей
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# ── APACHE DOCUMENT ROOT → Laravel public ──
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 
-# Копируем весь проект
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/sites-available/*.conf
+
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/apache2.conf \
+    /etc/apache2/conf-available/*.conf
+
+# ── РАБОЧАЯ ДИРЕКТОРИЯ ──
+WORKDIR /var/www/html
+
+# ── КОПИРУЕМ ФАЙЛЫ ──
 COPY . .
 
-# Laravel оптимизация
-RUN php artisan config:clear || true
-RUN php artisan cache:clear || true
-RUN php artisan route:clear || true
+# ── СОЗДАЁМ .env ИЗ ПЕРЕМЕННЫХ RENDER ──
+# Render сам передаст переменные окружения
+RUN cp .env.example .env
 
-RUN php artisan config:cache || true
-RUN php artisan route:cache || true
+# ── УСТАНАВЛИВАЕМ ЗАВИСИМОСТИ ──
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Порт для Render
-EXPOSE 10000
+# ── ГЕНЕРИРУЕМ APP KEY ──
+RUN php artisan key:generate
 
-# Запуск
-CMD php artisan serve --host=0.0.0.0 --port=10000
+# ── ПРАВА ДОСТУПА ──
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
+
+# ── СКРИПТ ЗАПУСКА ──
+COPY render-start.sh /render-start.sh
+RUN chmod +x /render-start.sh
+
+EXPOSE 80
+
+CMD ["/render-start.sh"]
