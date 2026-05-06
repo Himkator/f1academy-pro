@@ -2,16 +2,21 @@
 
 namespace App\Models;
 
-use ApiPlatform\Metadata\ApiResource;
 use Illuminate\Database\Eloquent\Model;
 
-#[ApiResource]
-class Course extends Model
-{
-    protected $fillable = ['title', 'level', 'description', 'price', 'file_path', 'user_id'];
+class Course extends Model {
+
+    protected $fillable = [
+        'title', 'level', 'description',
+        'price', 'file_path', 'user_id', 'instructor_id'
+    ];
 
     public function user() {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function instructor() {
+        return $this->belongsTo(User::class, 'instructor_id');
     }
 
     public function enrollments() {
@@ -19,7 +24,6 @@ class Course extends Model
     }
 
     public function students() {
-        return $this->belongsToMany(User::class, 'enrollments')
-                    ->withTimestamps();
+        return $this->belongsToMany(User::class, 'enrollments')->withTimestamps();
     }
 }
