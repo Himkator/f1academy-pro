@@ -1,13 +1,18 @@
+[variables]
+PHP_VERSION = "8.2"
+
 [phases.setup]
-nixPkgs = ["php84", "php84Packages.composer", "postgresql"]
+nixPkgs = ["php82", "php82Packages.composer", "postgresql"]
 
 [phases.install]
 cmds = [
-    "composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs"
+    "composer install --no-interaction --no-scripts --no-autoloader --ignore-platform-reqs --prefer-dist",
+    "composer dump-autoload --optimize"
 ]
 
 [phases.build]
 cmds = [
+    "cp .env.example .env",
     "php artisan key:generate --force",
     "php artisan config:clear",
     "php artisan view:clear"
