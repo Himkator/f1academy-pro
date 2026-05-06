@@ -1,13 +1,14 @@
 [variables]
-PHP_VERSION = "8.2"
+PHP_VERSION = "8.4"
+COMPOSER_ALLOW_SUPERUSER = "1"
 
 [phases.setup]
-nixPkgs = ["php82", "php82Packages.composer", "postgresql"]
+nixPkgs = ["php84", "php84Packages.composer", "php84Packages.extensions.pdo_pgsql", "php84Packages.extensions.pgsql", "php84Packages.extensions.mbstring", "php84Packages.extensions.gd", "postgresql"]
 
 [phases.install]
 cmds = [
-    "composer install --no-interaction --no-scripts --no-autoloader --ignore-platform-reqs --prefer-dist",
-    "composer dump-autoload --optimize"
+    "COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --no-scripts --no-autoloader --prefer-dist",
+    "COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize"
 ]
 
 [phases.build]
